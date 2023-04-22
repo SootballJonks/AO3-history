@@ -46,7 +46,7 @@ async function scrape() {
   // Iterate through the works and collect the data
   const data = $('ol.reading.work.index.group > li').map((_, work) => {
     const id = $(work).attr('id');
-    const title = $(work).find('h4.heading a').text();
+    const title = $(work).find('h4.heading a:first-child').text();
     const author = $(work).find('a[rel="author"]').text();
     const fandoms = $(work).find('h5.fandoms a').map((_, a) => $(a).text()).get();
   
@@ -68,7 +68,14 @@ async function scrape() {
     const kudos = stats.find('dd.kudos').text();
     const hits = stats.find('dd.hits').text();
   
-    const visited = $(work).find('h4.viewed').text();
+    const visitedText = $(work).find('h4.viewed').text().trim();
+    const lastVisitedMatch = visitedText.match(/Last visited:\s*(\d+\s+\w+\s+\d+)/);
+    const versionMatch = visitedText.match(/\((.+)\)/);
+    const numVisitedMatch = visitedText.match(/Visited\s+(\d+)\s+times/);
+
+    const lastVisited = lastVisitedMatch ? lastVisitedMatch[1] : '';
+    const version = versionMatch ? versionMatch[1] : '';
+    const numVisited = numVisitedMatch ? parseInt(numVisitedMatch[1]) : 0;
   
     return {
       id,
@@ -88,7 +95,9 @@ async function scrape() {
       chapters,
       kudos,
       hits,
-      visited
+      lastVisited,
+      version,
+      numVisited
     };
   }).get();
   
@@ -99,38 +108,3 @@ async function scrape() {
 }
 
 scrape();
-
-
-/*
-const rating = $('dd.rating').text().trim();
-  const fandoms = $('dd.fandom a').map((_, el) => $(el).text()).get();
-  const relationship = $('dd.relationship a').map((_, el) => $(el).text()).get();
-  const character = $('dd.character a').map((_, el) => $(el).text()).get();
-  const additionalTags = $('dd.freeform a').map((_, el) => $(el).text()).get();
-
-  const published = $('dd.published').text().trim();
-  const words = $('dd.words').text().trim();
-  const chapters = $('dd.chapters').text().trim();
-
-  const title = $('h2.title.heading').text().trim();
-  const author = $('h3.byline a[rel="author"]').text().trim();
-  const summary = $('blockquote.userstuff:first').text().trim();
-
-  const data = {
-    rating,
-    fandoms,
-    relationship,
-    character,
-    additionalTags,
-    stats: {
-      published,
-      words,
-      chapters,
-    },
-    title,
-    author,
-    summary,
-  };
-
-  console.log(data); //add return value once this starts working
-*/
