@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import cheerio from 'cheerio';
+import xlsx from 'xlsx';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -7,8 +8,6 @@ dotenv.config();
 const AO3_LOGIN_URL = 'https://archiveofourown.org/users/login';
 const USERNAME = process.env.AO3_USERNAME;
 const PASSWORD = process.env.AO3_PASSWORD;
-
-const HISTORY_URL = `https://archiveofourown.org/users/${USERNAME}/readings?page=1`;
 
 async function authenticate(page) {
   await page.goto(AO3_LOGIN_URL);
@@ -31,20 +30,13 @@ async function authenticate(page) {
   }
 }
 
-
-async function scrape() {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-
-  await authenticate(page);
-  await page.goto(HISTORY_URL);
-
+async function collectDataFromPage(page, url) {
+  await page.goto(url);
   const body = await page.content();
   const $ = cheerio.load(body);
 
-
   // Iterate through the works and collect the data
-  const data = $('ol.reading.work.index.group > li').map((_, work) => {
+  return $('ol.reading.work.index.group > li').map((_, work) => {
     const id = $(work).attr('id');
     const title = $(work).find('h4.heading a:first-child').text();
     const author = $(work).find('a[rel="author"]').text();
@@ -81,15 +73,15 @@ async function scrape() {
       id,
       title,
       author,
-      fandoms,
+      fandoms: fandoms.join(', '),
       rating,
       category,
       status,
       dateUpdated,
-      warnings,
-      relationships,
-      characters,
-      freeforms,
+      warnings: warnings.join(', '),
+      relationships: relationships.join(', '),
+      characters: characters.join(', '),
+      freeforms: freeforms.join(', '),
       summary,
       words,
       chapters,
@@ -100,11 +92,36 @@ async function scrape() {
       numVisited
     };
   }).get();
-  
-  console.log(data);
-  
-
-  await browser.close();
 }
 
-scrape();
+
+async function main() {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await authenticate(page);
+
+  let currentPage = 1;
+  let hasMorePages = true;
+  let allData = [];
+
+  while (hasMorePages) {
+    const url = `https://archiveofourown.org/users/${USERNAME}/readings?page=${currentPage}`;
+    const data = await collectDataFromPage(page, url);
+    allData = allData.concat(data);
+
+    // Check if there is a next page
+    hasMorePages = await page.$('a[rel="next"]') !== null;
+
+    currentPage++;
+  }
+
+  await browser.close();
+
+  // Write data to an Excel file
+  const worksheet = xlsx.utils.json_to_sheet(allData);
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, 'Data');
+  xlsx.writeFile(workbook, 'collected_data.xlsx');
+}
+
+main();
