@@ -109,6 +109,8 @@ async function main() {
     const data = await collectDataFromPage(page, url);
     allData = allData.concat(data);
 
+    // Print progress
+    console.log(`Scraping page ${currentPage}`);
     // Check if there is a next page
     hasMorePages = await page.$('a[rel="next"]') !== null;
 
@@ -122,6 +124,7 @@ async function main() {
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, worksheet, 'Data');
   xlsx.writeFile(workbook, 'collected_data.xlsx');
+  console.log ("Done! All data has been saved to 'collected_data.xlsx'");
 }
 
 main();
